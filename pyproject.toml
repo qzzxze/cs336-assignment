@@ -1,0 +1,11 @@
+[project]
+name = "cs336-assignment"
+version = "0.1.0"
+description = "cs336-assignment"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=2.0.2",
+    "tiktoken>=0.11.0",
+    "torch>=2.8.0",
+]
