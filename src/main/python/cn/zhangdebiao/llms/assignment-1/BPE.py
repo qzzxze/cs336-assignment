@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+merge = []
+
 
 def compare_pair_freqs(splits, word_freqs):
     """
@@ -61,6 +63,7 @@ def bpe_train(splits, words_freq, epoch):
             f"第{i + 1}次合并：把'{best_pair[0]}和'{best_pair[1]}'合并成{best_pair[0]+best_pair[1]},共出现{best_freq}次！"
         )
         splits = merge_pairs(best_pair[0], best_pair[1], splits=splits)
+        merge.append(best_pair)
     return splits
 
 
