@@ -2,23 +2,22 @@ import torch
 
 
 class AdamW:
-    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=1e-2):
+    def __init__(self, params, lr=0.01, eps=1e-8, weight_decay=1e-2, betas=(0.9, 0.999)):
         self.params = list(params)
         self.lr = lr
-        self.betas = betas
         self.eps = eps
         self.weight_decay = weight_decay
+        self.betas = betas
 
-        self.m = [torch.zeros_like(p) for p in self.params]
-        self.v = [torch.zeros_like(p) for p in self.params]
+        self.m = [torch.zeros_like(p) for p in params]
+        self.v = [torch.zeros_like(p) for p in params]
         self.t = 0
-        print(f"🤖 AdamW 机器人已启动！学习率={lr}, 权重衰减={weight_decay}")
 
     def step(self):
         self.t += 1
         print(f"--- 第 {self.t} 次更新开始 ---")
-
         beta1, beta2 = self.betas
+
         for i, param in enumerate(self.params):
             if param.grad is None:
                 continue
@@ -26,21 +25,14 @@ class AdamW:
             grad = param.grad.data
             print(f"  参数 {i}: 梯度大小 = {grad.abs().mean().item():.6f}")  # 打印平均梯度，看看训练状态
 
-            if self.weight_decay != 0:
-                grad = grad + self.weight_decay * param.data
-
             self.m[i] = beta1 * self.m[i] + (1 - beta1) * grad
-
-            self.v[i] = beta2 * self.v[i] + (1 - beta2) * (grad ** 2)
+            self.v[i] = beta2 * self.v[i] + (1 - beta2) * grad ** 2
 
             m_hat = self.m[i] / (1 - beta1 ** self.t)
             v_hat = self.v[i] / (1 - beta2 ** self.t)
 
-            denominator = v_hat.sqrt() + self.eps
-
-            update = self.lr * m_hat / denominator
-
-            param.data = param.data - update
+            update = self.lr * (m_hat / (v_hat.sqrt_() + self.eps))
+            param.data = param.data - update - (self.lr * self.weight_decay * param.data)
 
             # 📊 打印一些信息，观察更新过程
             print(f"    更新量大小: {update.abs().mean().item():.6f}")
@@ -52,15 +44,17 @@ class AdamW:
         for p in self.params:
             if p.grad is not None:
                 p.grad.zero_()
-        print("梯度已清零")
+
 
 
 x = torch.tensor([10.0], requires_grad=True)
+
 print(f"初始值：x = {x.item()}")
 
-optimizer = AdamW(params=[x], lr=0.01, weight_decay=0.0)
+optimizer = AdamW(params=[x], lr=0.1)
 
-for step in range(20):
+for epoch in range(1000):
+
     loss = (x - 3) ** 2
 
     loss.backward()
@@ -69,7 +63,7 @@ for step in range(20):
 
     optimizer.zero_grad()
 
-    if step % 5 == 0:
-        print(f"步骤 {step}: x = {x.item():.4f}, 损失 = {loss.item():.4f}")
+    if epoch % 5 == 0:
+        print(f"步骤 {epoch}: x = {x.item():.4f}, 损失 = {loss.item():.4f}")
 
-print(f"训练结束！最终x ~~ {x.item():.4f}")
+    print(f"训练结束！最终x ~~ {x.item():.4f}")
