@@ -2,6 +2,10 @@ from collections import defaultdict
 
 merge = []
 
+token_to_id = []
+
+id_to_token = []
+
 
 def compare_pair_freqs(splits, word_freqs):
     """
@@ -92,7 +96,7 @@ def construct_tokens_ids(vocabulary):
     return token_to_id, id_to_token
 
 
-def encode(text, token_to_id):
+def encode(text):
     if not text.endswith("</w>"):
         text += "</w>"
 
@@ -116,7 +120,7 @@ def encode(text, token_to_id):
     return [token_to_id[token] for token in tokens]
 
 
-def decode(ids, id_to_token):
+def decode(ids):
     tokens = [id_to_token[id] for id in ids]
     raw = "".join(tokens)
     if raw.endswith("</w>"):
@@ -156,15 +160,16 @@ def main():
 
     print(vocabulary)
 
+    global token_to_id, id_to_token
     token_to_id, id_to_token = construct_tokens_ids(vocabulary=vocabulary)
 
     test_words = ["hello", "world", "how", "are", "python", "fine"]
 
     for word in test_words:
         # 编码
-        encoded_ids = encode(word, token_to_id=token_to_id)
+        encoded_ids = encode(word)
         # 解码
-        decoded_text = decode(encoded_ids, id_to_token=id_to_token)
+        decoded_text = decode(encoded_ids)
 
         print(f"原始: '{word}'")
         print(f"编码: {encoded_ids}")
