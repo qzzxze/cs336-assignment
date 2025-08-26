@@ -1,12 +1,8 @@
 from collections import defaultdict
 
-merge = []
+merge_rules = []
 
-token_to_id = []
-
-id_to_token = []
-
-
+# 这只是一个玩具BPE，真正的BPE，得上万行代码才能高效运行 ， 自己引入tiktoken，指定gpt-4,你知道就行了。
 def compare_pair_freqs(splits, word_freqs):
     """
     统计最常见字符串
@@ -54,9 +50,20 @@ def merge_pairs(a, b, splits):
     return splits
 
 
-# 函数：训练！重复“找最常见字符对 → 合并”这个过程，epoch == ？
-def bpe_train(splits, words_freq, epoch):
-    for i in range(epoch):
+# 函数：训练！重复“找最常见字符对 → 合并”这个过程
+def bpe_train(splits, words_freq, vocab_size):
+    global merge_rules
+    merge_rules = []
+    while True:
+        current_vocab = set()
+
+        for split in splits.values():
+            for token in split:
+                current_vocab.add(token)
+        if len(current_vocab) >= vocab_size:
+            print(f"达到目标词表大小 {vocab_size}，停止训练。")
+            break
+
         pair_freqs = compare_pair_freqs(splits=splits, word_freqs=words_freq)
         if len(pair_freqs) == 0:
             print("没有可以合并的字符对")
@@ -64,10 +71,10 @@ def bpe_train(splits, words_freq, epoch):
         best_pair = max(pair_freqs, key=pair_freqs.get)
         best_freq = pair_freqs[best_pair]
         print(
-            f"第{i + 1}次合并：把'{best_pair[0]}和'{best_pair[1]}'合并成{best_pair[0]+best_pair[1]},共出现{best_freq}次！"
+            f"合并: '{best_pair[0]}' + '{best_pair[1]}' -> '{best_pair[0] + best_pair[1]}' (出现 {best_freq} 次)"
         )
         splits = merge_pairs(best_pair[0], best_pair[1], splits=splits)
-        merge.append(best_pair)
+        merge_rules.append(best_pair)
     return splits
 
 
@@ -76,14 +83,8 @@ def construct_vocabulary(splits, words_freq_with_end):
     vocabulary = set()
 
     for split in splits.values():
-        for token in split:
-            vocabulary.add(token)
-    all_chars = set()
-    for word in words_freq_with_end:
-        for c in word:
-            all_chars.add(c)
+        vocabulary.update(split)
 
-    vocabulary.update(all_chars)
     vocabulary = sorted(vocabulary)
     vocabulary.append("<UNK>")
 
@@ -96,36 +97,32 @@ def construct_tokens_ids(vocabulary):
     return token_to_id, id_to_token
 
 
-def encode(text):
-    if not text.endswith("</w>"):
-        text += "</w>"
+def encode(word, token_to_id):
+    if not word.endswith("</w>"):
+        word += "</w>"
 
-    tokens = []
-    i = 0
-    n = len(text)
+    split = list(word)
 
-    while i < n:
-        matched = False
-        for j in range(n + 1, i, -1):
-            candidate = text[i:j]
-            if candidate in token_to_id:
-                tokens.append(candidate)
-                i = j
-                matched = True
-                break
-        if not matched:
-            tokens.append("<UNK>")
-            i += 1
+    for (a, b) in merge_rules:
+        i = 0
+        new_split = []
 
-    return [token_to_id[token] for token in tokens]
+        while i < len(split):
+            if i < len(split) - 1 and split[i] == a and split[i + 1] == b:
+                new_split.append(a + b)
+                i += 2
+            else:
+                new_split.append(split[i])
+                i += 1
+        split = new_split
+
+    return [token_to_id.get(token, token_to_id["<UNK>"]) for token in split]
 
 
-def decode(ids):
+def decode(ids, id_to_token):
     tokens = [id_to_token[id] for id in ids]
     raw = "".join(tokens)
-    if raw.endswith("</w>"):
-        raw = raw[:-4]
-    return raw
+    return raw.replace("</w>", " ").strip()
 
 
 def main():
@@ -152,24 +149,24 @@ def main():
     for word in word_freqs_with_end:
         splits[word] = list(word)
 
-    splits = bpe_train(splits=splits, words_freq=word_freqs_with_end, epoch=10)
+    splits = bpe_train(splits=splits, words_freq=word_freqs_with_end, vocab_size=50)
 
     vocabulary = construct_vocabulary(
         splits=splits, words_freq_with_end=word_freqs_with_end
     )
 
-    print(vocabulary)
+    print("最终词表大小:", len(vocabulary))
+    print("部分词表:", vocabulary[:30])
 
-    global token_to_id, id_to_token
     token_to_id, id_to_token = construct_tokens_ids(vocabulary=vocabulary)
 
     test_words = ["hello", "world", "how", "are", "python", "fine"]
 
     for word in test_words:
         # 编码
-        encoded_ids = encode(word)
+        encoded_ids = encode(word, token_to_id)
         # 解码
-        decoded_text = decode(encoded_ids)
+        decoded_text = decode(encoded_ids, id_to_token)
 
         print(f"原始: '{word}'")
         print(f"编码: {encoded_ids}")
