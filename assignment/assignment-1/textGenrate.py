@@ -14,6 +14,16 @@ GPT_CONFIG_MAC = {
     "qkv_bias": False
 }
 
+GPT_CONFIG_A100 = {
+    "vocab_size": 50257,
+    "context_length": 256,
+    "emb_dim": 384,
+    "n_heads": 6,
+    "n_layers": 6,
+    "drop_rate": 0.1,
+    "qkv_bias": False,
+}
+
 
 def generate_text(model, tokenizer, prompt, max_length=50, temperature=0.8, device='cpu'):
     """生成文本函数"""
@@ -43,21 +53,33 @@ def generate_text(model, tokenizer, prompt, max_length=50, temperature=0.8, devi
 if __name__ == '__main__':
     # 加载训练好的模型
     device = torch.device('cpu')
-    model = GPTModel(GPT_CONFIG_MAC)
+    model = GPTModel(GPT_CONFIG_A100)
 
     # 加载保存的权重
+    # 加载保存的权重
     checkpoint = torch.load('best_model.pt', map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
+
+    # <<< 新增：处理 DataParallel 保存的权重 >>>
+    state_dict = checkpoint['model_state_dict']
+
+    # 如果权重名以 'module.' 开头，就去掉
+    from collections import OrderedDict
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        if k.startswith('module.'):
+            new_state_dict[k[7:]] = v  # 去掉 'module.' 这7个字符
+        else:
+            new_state_dict[k] = v
+
+    model.load_state_dict(new_state_dict)
     model.to(device)
 
     # 初始化分词器
-    tokenizer = tiktoken.encoding_for_model("gpt2")
+    tokenizer = tiktoken.get_encoding("gpt2")
 
     # 生成文本
     prompts = [
-        "Once upon a time",
-        "The little cat",
-        "In a magical forest"
+        "Once upon a time"
     ]
 
     for prompt in prompts:
@@ -65,7 +87,7 @@ if __name__ == '__main__':
             model=model,
             tokenizer=tokenizer,
             prompt=prompt,
-            max_length=30,
+            max_length=128,
             temperature=0.8,
             device=device
         )

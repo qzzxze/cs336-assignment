@@ -2,24 +2,14 @@ import torch.nn
 
 from Attention import MultiHeadAttention
 
-GPT_CONFIG_124M = {
-    "vocab_size": 8000,      # TinyStories使用更小的词汇表，约8k tokens
-    "context_length": 256,   # TinyStories故事较短，256长度足够
-    "emb_dim": 64,          # 更小的嵌入维度
-    "n_heads": 4,           # 较少的注意力头
-    "n_layers": 4,          # 较少的层数
-    "drop_rate": 0.0,       # TinyStories通常不需要dropout
-    "qkv_bias": False
-}
-
 
 class FeedForward(torch.nn.Module):
-    def __init__(self,cfg):
+    def __init__(self, cfg):
         super().__init__()
         self.layers = torch.nn.Sequential(
             torch.nn.Linear(cfg["emb_dim"], 4 * cfg["emb_dim"]),
             torch.nn.GELU(),
-            torch.nn.Linear(4 * cfg["emb_dim"], cfg["emb_dim"])
+            torch.nn.Linear(4 * cfg["emb_dim"], cfg["emb_dim"]),
         )
 
     def forward(self, x):
@@ -41,7 +31,7 @@ class LayerNorm(torch.nn.Module):
 
 
 class Transformer(torch.nn.Module):
-    def __init__(self,cfg):
+    def __init__(self, cfg):
         super().__init__()
         self.attention = MultiHeadAttention(
             d_in=cfg["emb_dim"],
@@ -49,16 +39,14 @@ class Transformer(torch.nn.Module):
             context_length=cfg["context_length"],
             dropout=cfg["drop_rate"],
             head_nums=cfg["n_heads"],
-            qkv_bias=cfg["qkv_bias"]
+            qkv_bias=cfg["qkv_bias"],
         )
-        self.feed_forward = FeedForward(
-            cfg
-        )
+        self.feed_forward = FeedForward(cfg)
         self.norm1 = LayerNorm(cfg["emb_dim"])
         self.norm2 = LayerNorm(cfg["emb_dim"])
         self.dropout = torch.nn.Dropout(cfg["drop_rate"])
 
-    def forward(self,x):
+    def forward(self, x):
         shortcut = x
         x = self.norm1(x)
         x = self.attention(x)
@@ -72,4 +60,3 @@ class Transformer(torch.nn.Module):
         x += shortcut
 
         return x
-

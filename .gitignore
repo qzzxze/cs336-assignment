@@ -8,7 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
-data/TinyStoriesV2-GPT4-valid.txt
-data/TinyStoriesV2-GPT4-train.txt
-data/owt_valid.txt
-data/owt_train.txt
+*.txt
+*.pkl
+*.pt
